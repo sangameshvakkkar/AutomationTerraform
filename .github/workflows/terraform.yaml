@@ -10,6 +10,9 @@ permissions:
 
 jobs:
   terraform:
+    concurrency:
+        group: terraform-main #only one workflow can run at a time
+        cancel-in-progress: true #cancel in progress workflow, if new workflow is triggered
     runs-on: ubuntu-latest
 
     steps:
