@@ -1,25 +1,30 @@
 name: Terraform Apply
 
 on:
-  push:
-    branches:
-      - dev
-      - main
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Environment to deploy to"
+        required: true
+        type: choice
+        options:
+          - dev
+          - prod
 
 permissions:
   id-token: write
   contents: read
 
-# env:
-#   ENVIRONMENT: ${{ github.ref_name }}
-
 jobs:
   terraform:
     runs-on: ubuntu-latest
-    environment: ${{ github.ref_name }}
+
+    environment: ${{ inputs.environment }}
+
     concurrency:
-        group: terraform-${{ github.ref_name }} #only one workflow can run at a time
+        group: terraform-${{ inputs.environment }} #only one workflow can run at a time
         cancel-in-progress: true #cancel in progress workflow, if new workflow is triggered
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -35,20 +40,20 @@ jobs:
 
       - name: Terraform Init
         run: terraform init
-        working-directory: envs/${{ github.ref_name }}
+        working-directory: envs/${{ inputs.environment }}
 
       - name: Terraform Format
         run: terraform fmt -check
-        working-directory: envs/${{ github.ref_name }}
+        working-directory: envs/${{ inputs.environment }}
 
       - name: Terraform Validate
         run: terraform validate
-        working-directory: envs/${{ github.ref_name }}
+        working-directory: envs/${{ inputs.environment }}
 
       - name: Terraform Plan
         run: terraform plan -out=tfplan
-        working-directory: envs/${{ github.ref_name }}
+        working-directory: envs/${{ inputs.environment }}
 
       - name: Terraform Apply
         run: terraform apply -auto-approve tfplan
-        working-directory: envs
+        working-directory: envs/${{ inputs.environment }}
