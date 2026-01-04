@@ -16,11 +16,10 @@ env:
 
 jobs:
   terraform:
-    concurrency:
-        group: terraform-main #only one workflow can run at a time
-        cancel-in-progress: true #cancel in progress workflow, if new workflow is triggered
     runs-on: ubuntu-latest
-
+    concurrency:
+        group: terraform-${{ github.ref_name }} #only one workflow can run at a time
+        cancel-in-progress: true #cancel in progress workflow, if new workflow is triggered
     steps:
       - name: Checkout
         uses: actions/checkout@v4
