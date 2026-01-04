@@ -44,10 +44,8 @@ jobs:
           filters: |
             dev:
               - 'envs/dev/**'
-              - 'modules/**'
             prod:
               - 'envs/prod/**'
-              - 'modules/**'
 
   # JOB 2: Deploy to Development
   deploy-dev:
