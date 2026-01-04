@@ -1,8 +1,8 @@
 terraform {
   backend "s3" {
-    bucket       = var.backend_bucket_name
-    key          = var.backend_bucket_key
-    region       = var.backend_region
+    bucket       = "aura-cicd-terraform-state"
+    key          = "prod/terraform.tfstate"
+    region       = "ap-south-1"
     encrypt      = true
     use_lockfile = true
   }
