@@ -9,6 +9,13 @@ variable "environment" {
 }
 
 
+
+variable "prevent_destroy" {
+  description = "Whether to protect the bucket from destruction"
+  type        = bool
+  default     = false
+}
+
 variable "tags" {
   description = "Common tags to apply to resources"
   type        = map(string)
