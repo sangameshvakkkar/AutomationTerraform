@@ -24,6 +24,9 @@ jobs:
   # This job runs first to calculate which environments need to be deployed.
   changes:
     runs-on: ubuntu-latest
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.ref }}
+      cancel-in-progress: true
     permissions:
       contents: read # Required to read the git history/diff
     outputs:
@@ -54,6 +57,9 @@ jobs:
     if: github.event_name == 'workflow_dispatch' || needs.changes.outputs.dev == 'true'
     runs-on: ubuntu-latest
     environment: dev
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.ref }}
+      cancel-in-progress: true
     defaults:
       run:
         working-directory: envs/dev
