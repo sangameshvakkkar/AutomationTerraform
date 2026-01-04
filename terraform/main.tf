@@ -1,13 +1,14 @@
 resource "aws_s3_bucket" "demo" {
-  bucket = var.bucket_name
+  bucket = "${var.environment}-${var.bucket_name}"
 
   lifecycle {
-    prevent_destroy = true
+    prevent_destroy = var.environment == "main"
   }
 
   tags = {
     Project = "Aura-Terraform-CICD"
     Owner   = "suraj"
+    Environment = var.environment
   }
 }
 
