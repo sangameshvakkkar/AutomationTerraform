@@ -81,9 +81,12 @@ jobs:
         run: terraform validate
 
       - name: Terraform Plan
-        run: terraform plan -out=tfplan
+        # Generates an execution plan and saves it to a file named 'tfplan'.
+        # Added -var-file so Terraform knows where to read values from.
+        run: terraform plan -var-file="dev.tfvars" -out=tfplan
 
       - name: Terraform Apply
+        # Applies the saved plan automatically without asking for confirmation (-auto-approve).
         run: terraform apply -auto-approve tfplan
 
   # JOB 3: Deploy to Production
@@ -121,7 +124,8 @@ jobs:
         run: terraform validate
 
       - name: Terraform Plan
-        run: terraform plan -out=tfplan
+        # Added -var-file so Terraform knows where to read values from.
+        run: terraform plan -var-file="prod.tfvars" -out=tfplan
 
       - name: Terraform Apply
         run: terraform apply -auto-approve tfplan

@@ -1,9 +1,10 @@
+# NOTE: You cannot use ${var.variable} inside a .tfvars file. Values must be static.
 bucket_name = "aura-terraform-state"
 environment = "dev"
 
 tags = {
-  Name        = "${var.environment}-s3"
+  Name        = "dev-s3"
   Project     = "Aura"
-  Environment = var.environment
+  Environment = "dev"
 }
 
