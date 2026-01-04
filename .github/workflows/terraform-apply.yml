@@ -20,17 +20,43 @@ permissions:
   contents: read  # Required to checkout the code
 
 jobs:
-  # JOB 1: Deploy to Development
+  # JOB 1: Detect Changes
+  # This job runs first to calculate which environments need to be deployed.
+  changes:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read # Required to read the git history/diff
+    outputs:
+      # Expose the filter results so other jobs can use them "needs.changes.outputs.dev"
+      dev: ${{ steps.filter.outputs.dev }}
+      prod: ${{ steps.filter.outputs.prod }}
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          # Define filters: "name: path/glob"
+          # If any file matches the glob, the filter output will be 'true'
+          filters: |
+            dev:
+              - 'envs/dev/**'
+              - 'modules/**'
+            prod:
+              - 'envs/prod/**'
+              - 'modules/**'
+
+  # JOB 2: Deploy to Development
   deploy-dev:
     name: Deploy API to Dev
-    # Conditional Logic:
-    # Run if it's a manual trigger OR if the changes include files in 'envs/dev/' or 'modules/'
-    if: github.event_name == 'workflow_dispatch' || (contains(github.event.head_commit.modified, 'envs/dev/') || contains(github.event.head_commit.modified, 'modules/'))
+    needs: changes # Wait for the 'changes' job to finish
+    # Run if manual trigger OR if the 'dev' filter from the changes job was true
+    if: github.event_name == 'workflow_dispatch' || needs.changes.outputs.dev == 'true'
     runs-on: ubuntu-latest
-    environment: dev # Links this job to the "dev" environment in GitHub Settings (useful for secrets/protection rules)
+    environment: dev
     defaults:
       run:
-        working-directory: envs/dev # All terraform commands below will run inside this folder
+        working-directory: envs/dev
     
     steps:
       - name: Checkout Code
@@ -39,7 +65,6 @@ jobs:
       - name: Configure AWS credentials (OCID)
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          # The IAM Role ARN that GitHub Actions will assume to talk to AWS
           role-to-assume: arn:aws:iam::170974506299:role/aura-tf-cicd-ip-role
           aws-region: ap-south-1
 
@@ -47,30 +72,26 @@ jobs:
         uses: hashicorp/setup-terraform@v3
 
       - name: Terraform Init
-        # Initialize the backend (S3) and download providers.
         run: terraform init
 
       - name: Terraform Format
-        # Fails the pipeline if your code isn't properly formatted.
         run: terraform fmt -check
 
       - name: Terraform Validate
-        # Checks for syntax errors and valid configuration.
         run: terraform validate
 
       - name: Terraform Plan
-        # Generates an execution plan and saves it to a file named 'tfplan'.
         run: terraform plan -out=tfplan
 
       - name: Terraform Apply
-        # Applies the saved plan automatically without asking for confirmation (-auto-approve).
         run: terraform apply -auto-approve tfplan
 
-  # JOB 2: Deploy to Production
+  # JOB 3: Deploy to Production
   deploy-prod:
     name: Deploy API to Prod
-    # Conditional Logic: Similar to dev, but looks for changes in 'envs/prod/'
-    if: github.event_name == 'workflow_dispatch' || (contains(github.event.head_commit.modified, 'envs/prod/') || contains(github.event.head_commit.modified, 'modules/'))
+    needs: changes
+    # Run if manual trigger OR if the 'prod' filter from the changes job was true
+    if: github.event_name == 'workflow_dispatch' || needs.changes.outputs.prod == 'true'
     runs-on: ubuntu-latest
     environment: prod
     defaults:
