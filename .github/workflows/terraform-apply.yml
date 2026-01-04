@@ -135,3 +135,49 @@ jobs:
 
       - name: Terraform Apply
         run: terraform apply -auto-approve tfplan
+
+          # JOB 2: Deploy to Development
+  deploy-modules:
+    name: Modules validation
+    needs: changes # Wait for the 'changes' job to finish
+    # Run if manual trigger OR if the 'dev' filter from the changes job was true
+    if: github.event_name == 'workflow_dispatch' || needs.changes.outputs.dev == 'true'
+    runs-on: ubuntu-latest
+    environment: modules
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.ref }}
+      cancel-in-progress: true
+    defaults:
+      run:
+        working-directory: modules
+    
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      # - name: Configure AWS credentials (OCID)
+      #   uses: aws-actions/configure-aws-credentials@v4
+      #   with:
+      #     role-to-assume: arn:aws:iam::170974506299:role/aura-tf-cicd-ip-role
+      #     aws-region: ap-south-1
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Terraform Format
+        run: terraform fmt -check
+
+      - name: Terraform Validate
+        run: terraform validate
+
+      # - name: Terraform Plan
+      #   # Generates an execution plan and saves it to a file named 'tfplan'.
+      #   # Added -var-file so Terraform knows where to read values from.
+      #   run: terraform plan -var-file="dev.tfvars" -out=tfplan
+
+      # - name: Terraform Apply
+      #   # Applies the saved plan automatically without asking for confirmation (-auto-approve).
+      #   run: terraform apply -auto-approve tfplan
