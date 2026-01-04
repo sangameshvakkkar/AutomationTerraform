@@ -6,5 +6,4 @@ module "s3" {
   prevent_destroy = true
 
   tags = var.tags
-
 }

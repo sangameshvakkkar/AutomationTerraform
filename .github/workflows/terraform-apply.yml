@@ -33,6 +33,8 @@ jobs:
       # Expose the filter results so other jobs can use them "needs.changes.outputs.dev"
       dev: ${{ steps.filter.outputs.dev }}
       prod: ${{ steps.filter.outputs.prod }}
+      modules: ${{ steps.filter.outputs.modules }}
+      modules_matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
       - uses: actions/checkout@v4
       
@@ -44,8 +46,16 @@ jobs:
           filters: |
             dev:
               - 'envs/dev/**'
+              # We typically want dev to update if modules change too, but for now keeping your separation.
             prod:
               - 'envs/prod/**'
+            modules:
+               - 'modules/**'
+
+      - name: List Modules for Matrix
+        id: set-matrix
+        run: |
+          echo "matrix=$(python3 -c "import os, json; print(json.dumps([d for d in os.listdir('modules') if os.path.isdir(os.path.join('modules', d))]))")" >> $GITHUB_OUTPUT
 
   # JOB 2: Deploy to Development
   deploy-dev:
@@ -135,47 +145,38 @@ jobs:
         run: terraform apply -auto-approve tfplan
 
           # JOB 2: Deploy to Development
-  deploy-modules:
-    name: Modules validation
-    needs: changes # Wait for the 'changes' job to finish
-    # Run if manual trigger OR if the 'dev' filter from the changes job was true
-    if: github.event_name == 'workflow_dispatch' || needs.changes.outputs.dev == 'true'
+      # JOB 4: Validate Modules
+  validate-modules:
+    name: Validate Module (${{ matrix.module }})
+    needs: changes
+    # Run if manual trigger OR if the 'modules' filter was true
+    if: github.event_name == 'workflow_dispatch' || needs.changes.outputs.modules == 'true'
     runs-on: ubuntu-latest
-    environment: modules
+    strategy:
+      matrix:
+        module: ${{ fromJson(needs.changes.outputs.modules_matrix) }}
+      fail-fast: false # Don't cancel other module validations if one fails
+    
     concurrency:
-      group: ${{ github.workflow }}-${{ github.ref }}
+      group: ${{ github.workflow }}-${{ github.ref }}-validate-${{ matrix.module }}
       cancel-in-progress: true
+    
     defaults:
       run:
-        working-directory: modules
+        working-directory: modules/${{ matrix.module }}
     
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      # - name: Configure AWS credentials (OCID)
-      #   uses: aws-actions/configure-aws-credentials@v4
-      #   with:
-      #     role-to-assume: arn:aws:iam::170974506299:role/aura-tf-cicd-ip-role
-      #     aws-region: ap-south-1
-
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
 
       - name: Terraform Init
-        run: terraform init
+        run: terraform init -backend=false
 
       - name: Terraform Format
         run: terraform fmt -check
 
       - name: Terraform Validate
         run: terraform validate
-
-      # - name: Terraform Plan
-      #   # Generates an execution plan and saves it to a file named 'tfplan'.
-      #   # Added -var-file so Terraform knows where to read values from.
-      #   run: terraform plan -var-file="dev.tfvars" -out=tfplan
-
-      # - name: Terraform Apply
-      #   # Applies the saved plan automatically without asking for confirmation (-auto-approve).
-      #   run: terraform apply -auto-approve tfplan
