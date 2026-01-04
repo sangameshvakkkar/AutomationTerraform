@@ -6,8 +6,8 @@ resource "aws_s3_bucket" "demo" {
   }
 
   tags = {
-    Project = "Aura-Terraform-CICD"
-    Owner   = "suraj"
+    Project     = "Aura-Terraform-CICD"
+    Owner       = "suraj"
     Environment = var.environment
   }
 }
