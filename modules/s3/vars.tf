@@ -8,8 +8,6 @@ variable "environment" {
   type        = string
 }
 
-
-
 variable "prevent_destroy" {
   description = "Whether to protect the bucket from destruction"
   type        = bool
