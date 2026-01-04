@@ -1,22 +1,22 @@
-name: Terraform Full CI/CD
+name: Terraform Apply
 
 on:
   push:
     branches:
-      - main
       - dev
+      - main
 
 permissions:
   id-token: write
   contents: read
 
-
-env:
-  ENVIRONMENT: ${{ github.ref_name }}
+# env:
+#   ENVIRONMENT: ${{ github.ref_name }}
 
 jobs:
   terraform:
     runs-on: ubuntu-latest
+    environment: ${{ github.ref_name }}
     concurrency:
         group: terraform-${{ github.ref_name }} #only one workflow can run at a time
         cancel-in-progress: true #cancel in progress workflow, if new workflow is triggered
@@ -24,7 +24,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Configure AWS credentials
+      - name: Configure AWS credentials (OCID)
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: arn:aws:iam::170974506299:role/aura-tf-cicd-ip-role
@@ -35,19 +35,19 @@ jobs:
 
       - name: Terraform Init
         run: terraform init
-        working-directory: envs
+        working-directory: envs/${{ github.ref_name }}
 
       - name: Terraform Format
         run: terraform fmt -check
-        working-directory: envs
+        working-directory: envs/${{ github.ref_name }}
 
       - name: Terraform Validate
         run: terraform validate
-        working-directory: envs
+        working-directory: envs/${{ github.ref_name }}
 
       - name: Terraform Plan
         run: terraform plan -out=tfplan
-        working-directory: envs
+        working-directory: envs/${{ github.ref_name }}
 
       - name: Terraform Apply
         run: terraform apply -auto-approve tfplan

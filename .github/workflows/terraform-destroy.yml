@@ -2,6 +2,16 @@ name: Terraform Destroy
 
 on:
   workflow_dispatch:   # manual trigger only
+    inputs:
+      environment:
+        description: "Environment to destroy"
+        required: true
+        type: choice
+        default: "dev"
+        options:
+          - dev
+          - prod
+    
 
 permissions:
   id-token: write
@@ -10,10 +20,12 @@ permissions:
 jobs:
   destroy:
     runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -25,8 +37,8 @@ jobs:
 
       - name: Terraform Init
         run: terraform init
-        working-directory: envs
+        working-directory: envs/${{ inputs.environment }}
 
       - name: Terraform Destroy
         run: terraform destroy -auto-approve
-        working-directory: envs
+        working-directory: envs/${{ inputs.environment }}
