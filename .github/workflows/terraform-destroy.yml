@@ -10,7 +10,10 @@ on:
         options:
           - dev
           - prod
-    
+      confirmation:
+        description: "Type 'DESTROY' to confirm"
+        required: true
+        type: string
 
 permissions:
   id-token: write
@@ -22,6 +25,13 @@ jobs:
     environment: ${{ inputs.environment }}
 
     steps:
+      - name: Safety Check
+        run: |
+          if [ "${{ inputs.confirmation }}" != "DESTROY" ]; then
+            echo "Error: You must type 'DESTROY' to confirm."
+            exit 1
+          fi
+
       - name: Checkout
         uses: actions/checkout@v4
 
@@ -38,6 +48,12 @@ jobs:
         run: terraform init
         working-directory: envs/${{ inputs.environment }}
 
+      - name: Terraform Plan (Destroy)
+        # Generates a destroy plan and saves it to a file
+        run: terraform plan -destroy -var-file="${{ inputs.environment }}.tfvars" -out=tfplan
+        working-directory: envs/${{ inputs.environment }}
+
       - name: Terraform Destroy
-        run: terraform destroy -auto-approve
+        # Applies the saved destroy plan
+        run: terraform apply -auto-approve tfplan
         working-directory: envs/${{ inputs.environment }}
