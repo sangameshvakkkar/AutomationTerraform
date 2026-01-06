@@ -1,40 +1,105 @@
-# AutomationTerraform
+# Infra Automation with Terraform
 
-This repository contains the Terraform infrastructure for our project, organized by environments (`dev`, `prod`) and reusable `modules`.
+This repository contains the Terraform infrastructure for our project, designed with a strong focus on automation, safety, and module reusability.
 
-## Directory Structure
+## 🏗️ Architecture
 
-- `envs/`: Contains environment-specific configurations.
-  - `dev/`: Development environment.
-  - `prod/`: Production environment.
-- `modules/`: Reusable Terraform modules (e.g., `s3`).
-- `.github/workflows/`: CI/CD pipelines.
+The project matches environments (`dev`, `prod`) with reusable `modules`.
 
-## CI/CD Workflows
+```mermaid
+graph TD
+    subgraph Environments
+        Dev[envs/dev]
+        Prod[envs/prod]
+    end
+    subgraph Modules
+        S3[modules/s3]
+        VPC[modules/vpc]
+        EC2[modules/ec2]
+    end
+    Dev -.->|uses| S3
+    Prod -.->|uses| S3
+    Dev -.->|uses| VPC
+    Prod -.->|uses| VPC
+```
 
-We use **GitHub Actions** for continuous deployment.
+## 🧩 Smart Modules
 
-### Push to Deploy (`terraform-apply.yml`)
+### S3 Lifecycle Protection
+We implemented a conditional logic to handle `prevent_destroy`. Since Terraform lifecycle blocks are static, we use a "Split Resource" pattern.
 
-The deployment is triggered automatically when you push changes to the `main` branch.
+```mermaid
+graph LR
+    Input[Input: prevent_destroy] --> Check{Is True?}
+    Check -->|Yes| Protected[Resource: protected_bucket]
+    Check -->|No| Standard[Resource: standard_bucket]
+    Protected -.->|lifecycle| Lock[prevent_destroy = true]
+    Standard -.->|lifecycle| Normal[Normal Behavior]
+```
 
-- **Selective Deployment**: The workflow detects which files changed.
-  - If you change files in `envs/dev/**`, it triggers the **Deploy API to Dev** job.
-  - If you change files in `envs/prod/**`, it triggers the **Deploy API to Prod** job.
-  - If you change files in `modules/**`, it triggers **BOTH** jobs (to ensure changes propagate).
+## 🚀 CI/CD Pipelines
 
-### Manual Trigger
+We use **GitHub Actions** for an intelligent, dynamic deployment pipeline.
 
-You can also manually trigger the `Terraform Apply` workflow from the GitHub Actions tab. *Note: This will currently attempt to run both Dev and Prod deployments.*
+### 1. Dynamic Validation Matrix
+The pipeline automatically discovers new modules in the `modules/` directory and validates them in parallel. No YAML edits required when adding modules!
 
-## Getting Started
+```mermaid
+graph LR
+    Push[Push Code] --> Script[Python Discovery Script]
+    Script -->|Output JSON| Matrix["['s3', 'vpc', 'ec2']"]
+    Matrix --> Job1[Validate S3]
+    Matrix --> Job2[Validate VPC]
+    Matrix --> Job3[Validate EC2]
+```
 
-1.  **Clone the repo**: `git clone <repo-url>`
-2.  **Make changes**: Edit `.tf` files in `envs/dev` or `modules`.
-3.  **Push**: `git add .`, `git commit -m "Update S3 bucket"`, `git push origin main`.
-4.  **Watch Magic**: Go to the "Actions" tab in GitHub to see your deployment running!
+### 2. Deployment Workflow (`terraform-apply.yml`)
 
-## Standards
+```mermaid
+graph TD
+    Start([Push to Main]) --> Detect{Changed Paths?}
+    Detect -->|envs/dev/**| DeployDev[Deploy Dev]
+    Detect -->|envs/prod/**| DeployProd[Deploy Prod]
+    Detect -->|modules/**| DeployAll[Deploy All Envs + Validate Modules]
+```
 
-- **Versions**: We use `versions.tf` to ensure everyone uses compatible Terraform and Provider versions.
-- **State**: State is stored in S3 with key locking enabled.
+### 3. Safe Destroy Workflow (`terraform-destroy.yml`)
+
+A protected workflow to destroy infrastructure.
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant GitHub
+    participant Terraform
+    
+    User->>GitHub: Trigger Destroy
+    GitHub->>User: 🛑 "Type DESTROY to confirm"
+    
+    alt Input is Correct
+        User->>GitHub: "DESTROY"
+        GitHub->>Terraform: Plan (save to tfplan)
+        Terraform->>GitHub: Report Plan
+        GitHub->>Terraform: Apply tfplan
+        Terraform->>AWS: 🗑️ Delete Resources
+    else Input is Wrong
+        User->>GitHub: "Pls destroy"
+        GitHub->>User: ❌ Error: Exit 1
+    end
+```
+
+## 🛠️ Getting Started
+
+1.  **Clone**: `git clone <url>`
+2.  **Dev**: Edit `envs/dev/main.tf`
+3.  **Prod**: Edit `envs/prod/main.tf`
+4.  **Push**: Changes trigger the pipeline automatically.
+
+## ⚠️ Troubleshooting
+
+**"Instance cannot be destroyed"**
+If you need to destroy a `prod` bucket that has `prevent_destroy = true`:
+1.  Go to `modules/s3/main.tf`.
+2.  Change `prevent_destroy = true` to `false` in the `protected_bucket` resource.
+3.  Run the destroy pipeline.
+4.  Revert the change.
