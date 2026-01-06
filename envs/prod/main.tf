@@ -3,7 +3,7 @@ module "s3" {
 
   bucket_name     = var.bucket_name
   environment     = var.environment
-  prevent_destroy = true
+  prevent_destroy = false
 
   tags = var.tags
 }
