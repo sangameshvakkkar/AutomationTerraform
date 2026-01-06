@@ -12,6 +12,6 @@ resource "aws_s3_bucket" "protected_bucket" {
   tags = var.tags
 
   lifecycle {
-    prevent_destroy = false
+    prevent_destroy = true
   }
 }

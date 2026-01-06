@@ -7,5 +7,3 @@ module "s3" { # Trigger CI/CD execution
 
   tags = var.tags
 }
-
-
